@@ -1,105 +1,93 @@
-'''from devises import *
-import threading, time, random
-from math import sin, cos
-
-def pogoda(t:int):
-    temp = 2* (sin(t/20) + cos(t/10) + sin(t/4)) + 25  # тут не описать. открыть нужно любой калькулятор графиков и вставить туда фомулу
-    return temp   # y = 2* (sin(x/20) + cos(x/10) + sin(x/4)) + 25  это очень красиво выглядит. подобрано было на угад =)
-
-'''
+from devises import *
+import threading
 import time
-from queue import Queue
-from threading import Thread
 
-try:
-    import readline
-except ImportError:
-    print("err")
-    readline = None
-# Рабочая функция потока (получает задачу, возвращает результат)
+# Импортируем всё необходимое из нашей библиотеки term_ui
+from term import (
+    get_key,
+    init_terminal,
+    input_buffer,
+    print_log,
+    redraw_prompt,
+    restore_terminal,
+    screen_lock,
+)
 
-def inputer(to_inp_q: Queue, from_inp_q: Queue, worker_id: int):
-    while True:
-        i = input()
-        if len(i) > 2:
-            from_inp_q.put(i)
-        if to_inp_q.get() != '!!!EXIT!!!':
-            return 0
-    return 1
-def outputer(to_out_q: Queue, from_out_q: Queue, worker_id:int):
-    while True:
-        t = to_out_q.get()
-        if t == '!!!EXIT!!!':
-            return 0
-        print(t)
-    return 1
-    
 
-def worker(to_worker_queue: Queue, from_worker_queue: Queue, worker_id: int):
+def background_task():
+  """Пример фонового процесса, который периодически шлет логи наверх."""
+  step = 1
   while True:
-    # Ожидаем задание от главного потока (или другого потока)
-    data = to_worker_queue.get()
-
-    print(
-        f'[Поток {worker_id}] Получено задание: {data}', flush=True
-    )
-
-    if data == '!!!EXIT!!!':  # Сигнал для завершения работы
-      to_worker_queue.task_done()
-      break
-
-    time.sleep(1)  # Имитация полезной работы (например, I/O-запрос)
-    
-    
-    # Обрабатываем данные и отправляем ответ обратно
-    response = f'Обработано [{data}] от потока {worker_id}'
-    from_worker_queue.put(response)
-
-    # Сообщаем очереди, что задача обработана
-    to_worker_queue.task_done()
+    time.sleep(3)
+    print_log(f"[ФОН] Шаг {step}: Фоновый процесс работает стабильно.")
+    step += 1
 
 
 def main():
-  # Создаем две очереди для двусторонней связи:
-  # 1. request_queue — от главного потока к рабочему
-  # 2. response_queue — от рабочего к главному потоку
-  request_queue = Queue()
-  response_queue = Queue()
-  to_inp_q, to_out_q, from_inp_q, from_out_q = (Queue() for i in range(4))
+  # 1. Инициализируем терминал (создаем область логов сверху и строку ввода внизу)
+  init_terminal()
 
-  # Запускаем рабочий поток
-  inp = Thread(
-    target=inputer, args=(to_inp_q, from_inp_q, 2), daemon= True
-  )
-  out = Thread(
-    target=outputer, args=(to_out_q, from_out_q, 3), daemon= True
-    )
-  t = Thread(
-      target=worker, args=(request_queue, response_queue, 1), daemon=True
-  )
-  t.start()
-  inp.start()
-  out.start()
+  print_log("=== Консольный интерфейс запущен ===")
+  print_log("Введите команду ('help', 'status', 'exit') и нажмите Enter.\n")
 
-  # Отправляем данные в рабочий поток
-  tasks = ['запрос_А', 'запрос_Б', 'запрос_В', ' 1', ' t ', 'exit', '4']
-  for task in tasks:
-    request_queue.put(task)
+  # 2. Запускаем фоновый поток
+  sim_thread = threading.Thread(target=background_task, daemon=True)
+  sim_thread.start()
 
-  # Считываем ответы из обратной очереди
-  for _ in range(len(tasks)):
-    result = response_queue.get()
-    print(f'[Главный поток] Ответ: {result}', flush=True)
-    response_queue.task_done()
+  # 3. Первая отрисовка строки ввода
+  with screen_lock:
+    redraw_prompt()
 
-  # Отправляем сигнал остановки потоку
-  to_inp_q.put('!!!EXIT!!!')
-  to_out_q.put('!!!EXIT!!!')
-  t.join()
-  out.join()
-  inp.join()
-  print('Работа завершена.')
+  try:
+    # 4. Главный цикл обработки клавиатуры
+    while True:
+      key = get_key()
+      if not key:
+        continue
+
+      # Нажатие Enter (отправка команды)
+      if key in ("\r", "\n"):
+        command = "".join(input_buffer).strip()
+        input_buffer.clear()
+
+        with screen_lock:
+          redraw_prompt()
+
+        if command:
+          print_log(f"[Пользователь]: {command}")
+          cmd_lower = command.lower()
+
+          if cmd_lower == "exit":
+            print_log("Завершение работы...")
+            break
+          elif cmd_lower == "help":
+            print_log("Доступные команды: help, status, exit")
+          elif cmd_lower == "status":
+            print_log("Статус: Все системы работают нормально.")
+          else:
+            print_log(f"Неизвестная команда: '{command}'")
+
+      # Нажатие Backspace (удаление символа)
+      elif key in ("\x08", "\x7f"):
+        if input_buffer:
+          input_buffer.pop()
+          with screen_lock:
+            redraw_prompt()
+
+      # Экстренный выход (Ctrl+C)
+      elif key == "\x03":
+        break
+
+      # Печатные символы
+      elif ord(key) >= 32:
+        input_buffer.append(key)
+        with screen_lock:
+          redraw_prompt()
+
+  finally:
+    # Обязательно восстанавливаем консоль при выходе
+    restore_terminal()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
   main()
