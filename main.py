@@ -56,7 +56,7 @@ def main():
         if command:
           print_log(f"[Пользователь]: {command}")
           cmd_lower = command.lower()
-
+          
           if cmd_lower == "exit":
             print_log("Завершение работы...")
             break
