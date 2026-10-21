@@ -177,6 +177,7 @@ if __name__ == "__main__":
   print("ROOM    | DEVICE | STATE")
   print("-" * 25)
   print(str(Kitchen_window))  # Выведет состояние окна на кухне
+  print(repr(Devs(Rooms.BEDROOM, Devices.LED)))
   print(
       str(Devs(Rooms.BEDROOM, Devices.FAN))
   )  # Выведет вентилятор в спальне (по умолчанию OFF)

@@ -1,3 +1,18 @@
+'''
+>>> Закрой окно 1
+>>> добавить
+  1 Kitchen
+  2 Bedroom
+  3 Living
+>>> 2
+ Что бы вы хотели добавить в {BEDROOM}
+  1 LED
+  2 FAN
+  3 SOCKET
+>>> 1
+  Добавлена лампа в спальню
+'''
+
 from devises import *
 import threading
 import time
