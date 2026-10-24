@@ -69,7 +69,7 @@ def redraw_prompt():
   sys.stdout.flush()
 
 
-def print_log(message: str):
+def print_log(message: str=''):
   """Выводит фоновое сообщение наверх, не портя строку ввода."""
   with screen_lock:
     rows, cols = get_term_size()

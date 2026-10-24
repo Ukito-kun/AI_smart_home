@@ -13,9 +13,12 @@
   Добавлена лампа в спальню
 '''
 
+'day.month hour:min                       '
+'15.JUL 15:24'        '{day}.{month} {hour}:{minute}'
 from devises import *
 import threading
 import time
+import calendar
 
 # Импортируем всё необходимое из нашей библиотеки term_ui
 from term import (
@@ -27,23 +30,51 @@ from term import (
     restore_terminal,
     screen_lock,
 )
-
-
+kitchen = {
+  'led1':F.make('led', Rooms.KITCHEN, States.ON), 
+  'window1':F.make('window', Rooms.KITCHEN), 
+  'door1':F.make('door', Rooms.KITCHEN)
+}
+living = {
+  'led1':F.make('led', Rooms.LIVING, States.ON), 
+  'window1':F.make('window', Rooms.LIVING), 
+  'door1':F.make('door', Rooms.LIVING)
+}
+bedroom = {
+  'led1':F.make('led', Rooms.BEDROOM, States.ON), 
+  'window1':F.make('window', Rooms.BEDROOM), 
+  'door1':F.make('door', Rooms.BEDROOM)
+}
 def background_task():
+  global living
   """Пример фонового процесса, который периодически шлет логи наверх."""
   step = 1
+  print_log(f'{'ROOM':^10} | {'DEVISES':^12} | {'STATE':^10} | {'OTHERS':^10}\n')
+  
   while True:
-    time.sleep(3)
-    print_log(f"[ФОН] Шаг {step}: Фоновый процесс работает стабильно.")
+    # print_log(f"[ФОН] Шаг {step}: Фоновый процесс работает стабильно.")
+    time.sleep(2)
+    for i in living:
+      print_log(str(living[i]))
+      living['led1'].set_brightness(random.randint(1,100))
+      if living['window1'].state == States.CLOSE:
+        living['window1'].Open()
+        living['door1'].Close()
+      else: 
+        living['window1'].Close()
+        living['door1'].Open()
+      #print_log(f"[ФОН] Шаг {step}: ФОН работает. Фоновых процессов: {random.randint(0, 100)}")
+    print_log('')
     step += 1
 
-
 def main():
+  global living
+  commands = ('help', 'status', 'exit')
   # 1. Инициализируем терминал (создаем область логов сверху и строку ввода внизу)
   init_terminal()
 
   print_log("=== Консольный интерфейс запущен ===")
-  print_log("Введите команду ('help', 'status', 'exit') и нажмите Enter.\n")
+  print_log(f"Введите команду {commands} и нажмите Enter.\n")
 
   # 2. Запускаем фоновый поток
   sim_thread = threading.Thread(target=background_task, daemon=True)
@@ -72,16 +103,19 @@ def main():
           print_log(f"[Пользователь]: {command}")
           cmd_lower = command.lower()
           
-          if cmd_lower == "exit":
-            print_log("Завершение работы...")
-            break
-          elif cmd_lower == "help":
-            print_log("Доступные команды: help, status, exit")
-          elif cmd_lower == "status":
-            print_log("Статус: Все системы работают нормально.")
-          else:
-            print_log(f"Неизвестная команда: '{command}'")
-
+          match cmd_lower:
+            case "exit":
+              print_log("Завершение работы...")
+              break
+            case 'help':
+              print_log(f'Доступные команды: {commands}')
+            case _:
+              if 'living' in cmd_lower:
+                print_log(f'Что закрыть? {living.keys()}')
+                while True:
+                  i = ''
+              print_log(f"Неизвестная команда: '{command}'")
+          print_log(f'\n{'ROOM':^10} | {'DEVISES':^12} | {'STATE':^10} | {'OTHERS':^10}')
       # Нажатие Backspace (удаление символа)
       elif key in ("\x08", "\x7f"):
         if input_buffer:
