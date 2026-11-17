@@ -1,3 +1,7 @@
+from devises import *
+import threading
+import time
+import calendar
 '''
 >>> Закрой окно 1
 >>> добавить
@@ -13,15 +17,12 @@
   Добавлена лампа в спальню
 '''
 
-'day.month hour:min                       '
+'day.month hour:min'
 '15.JUL 15:24'        '{day}.{month} {hour}:{minute}'
-from devises import *
-import threading
-import time
-import calendar
 
 # Импортируем всё необходимое из нашей библиотеки term_ui
 from term import (
+    dbg_log,
     get_key,
     init_terminal,
     input_buffer,
@@ -45,8 +46,24 @@ bedroom = {
   'window1':F.make('window', Rooms.BEDROOM), 
   'door1':F.make('door', Rooms.BEDROOM)
 }
+home = {
+  'kitchen' : {
+    'window' : [
+      F.make('window', Rooms.KITCHEN, States.CLOSE),
+      F.make('window', Rooms.KITCHEN, States.OPEN)
+    ]
+  },
+  'bedroom':{
+    'led' : [
+      F.make('led', Rooms.BEDROOM, States.OFF),
+      F.make('led', Rooms.BEDROOM, States.ON)
+    ]
+  }
+}
+
+dbg = 0
 def background_task():
-  global living
+  global living, dbg
   """Пример фонового процесса, который периодически шлет логи наверх."""
   step = 1
   print_log(f'{'ROOM':^10} | {'DEVISES':^12} | {'STATE':^10} | {'OTHERS':^10}\n')
@@ -54,22 +71,55 @@ def background_task():
   while True:
     # print_log(f"[ФОН] Шаг {step}: Фоновый процесс работает стабильно.")
     time.sleep(2)
-    for i in living:
-      print_log(str(living[i]))
-      living['led1'].set_brightness(random.randint(1,100))
-      if living['window1'].state == States.CLOSE:
-        living['window1'].Open()
-        living['door1'].Close()
-      else: 
-        living['window1'].Close()
-        living['door1'].Open()
-      #print_log(f"[ФОН] Шаг {step}: ФОН работает. Фоновых процессов: {random.randint(0, 100)}")
-    print_log('')
-    step += 1
+    if not dbg:
+      for i in living:
+        print_log(str(living[i]))
+        living['led1'].set_brightness(random.randint(1,100))
+        if living['window1'].state == States.CLOSE:
+          living['window1'].Open()
+          living['door1'].Close()
+        else: 
+          living['window1'].Close()
+          living['door1'].Open()
+        #print_log(f"[ФОН] Шаг {step}: ФОН работает. Фоновых процессов: {random.randint(0, 100)}")
+      print_log('')
+      step += 1
+
+def inp(one:str=''):
+  t = 1
+  if ' ' in cmd_lower:
+    cmd_lower = cmd_lower.split(' ')
+    match cmd_lower:
+      case 'dbg':
+        t = 0
+        dbg = not dbg
+        print_log(f'Debug was changed: {int(dbg)}')
+      case 'help', pars:
+        match pars:
+          case 'create':
+            t = 0
+            print_log("Для создания переменных нужно прописать \" создать устройство устройство место\" ")
+          case _:
+            pass
+      case 'create devise' | "создать устройство", room, dev:
+        if dev in F.get_keys() and room in Rooms.get_values():
+          home[room][dev].append(F.make(dev, room))
+          t = 0
+        
+      case _:  # иные
+        if 'living' in cmd_lower:
+          print_log(f'Есть: {living.keys()}')
+        
+  else:
+    match cmd_lower:
+      case 'help':
+        print_log(f'Доступные команды: {commands}')
+  if t: print_log(f"Неизвестная команда: '{command}'")
+  if not dbg: print_log(f'\n{'ROOM':^10} | {'DEVISES':^12} | {'STATE':^10} | {'OTHERS':^10}')
 
 def main():
-  global living
-  commands = ('help', 'status', 'exit')
+  global living, dbg
+  commands = ('help', 'status', 'exit', 'create')
   # 1. Инициализируем терминал (создаем область логов сверху и строку ввода внизу)
   init_terminal()
 
@@ -102,20 +152,10 @@ def main():
         if command:
           print_log(f"[Пользователь]: {command}")
           cmd_lower = command.lower()
-          
-          match cmd_lower:
-            case "exit":
-              print_log("Завершение работы...")
-              break
-            case 'help':
-              print_log(f'Доступные команды: {commands}')
-            case _:
-              if 'living' in cmd_lower:
-                print_log(f'Что закрыть? {living.keys()}')
-                while True:
-                  i = ''
-              print_log(f"Неизвестная команда: '{command}'")
-          print_log(f'\n{'ROOM':^10} | {'DEVISES':^12} | {'STATE':^10} | {'OTHERS':^10}')
+          if cmd_lower == "exit":
+            print_log("Завершение работы...")
+            break
+          inp(cmd_lower)
       # Нажатие Backspace (удаление символа)
       elif key in ("\x08", "\x7f"):
         if input_buffer:
@@ -134,9 +174,9 @@ def main():
           redraw_prompt()
 
   finally:
+    print_log('\n'*5)
     # Обязательно восстанавливаем консоль при выходе
     restore_terminal()
-
 
 if __name__ == "__main__":
   main()

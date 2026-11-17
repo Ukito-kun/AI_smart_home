@@ -19,7 +19,6 @@ screen_lock = threading.Lock()
 input_buffer = []
 prompt_prefix = ">> "
 
-
 def get_key():
   """Считывает ОДНО нажатие клавиши в реальном времени."""
   if IS_WINDOWS:
@@ -38,12 +37,10 @@ def get_key():
       termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
     return ch
 
-
 def get_term_size():
   """Возвращает текущие размеры терминала."""
   cols, rows = shutil.get_terminal_size((80, 24))
   return rows, cols
-
 
 def init_terminal():
   """Инициализирует разделенный экран и область прокрутки."""
@@ -52,13 +49,11 @@ def init_terminal():
   sys.stdout.write("\033[2J")
   sys.stdout.flush()
 
-
 def restore_terminal():
   """Возвращает настройки терминала в исходное состояние при выходе."""
   sys.stdout.write("\033[r")
   sys.stdout.write("\n")
   sys.stdout.flush()
-
 
 def redraw_prompt():
   """Перерисовывает строку ввода внизу экрана."""
@@ -68,7 +63,6 @@ def redraw_prompt():
   sys.stdout.write(f"\033[{rows};1H\033[2K{display_text}")
   sys.stdout.flush()
 
-
 def print_log(message: str=''):
   """Выводит фоновое сообщение наверх, не портя строку ввода."""
   with screen_lock:
@@ -76,3 +70,6 @@ def print_log(message: str=''):
     sys.stdout.write(f"\033[s\033[{rows-1};1H\n{message}")
     sys.stdout.write("\033[u")
     redraw_prompt()
+
+def dbg_log(message:Any):
+  print_log(f'{message}, {type(message)}')
